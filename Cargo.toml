@@ -2,6 +2,13 @@
 name = "ddc-brightness-daemon"
 version = "0.1.0"
 edition = "2024"
+authors = ["Sam Leonard <tritoke@protonmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "A daemon and client for controlling external monitor brightness."
+repository = "https://github.com/tritoke/ddc-brightness-daemon"
+keywords = ["brightness", "brightctl", "ddc"]
+categories = ["command-line-utilities"]
+default-run = "ddc-brightness-daemon"
 
 [dependencies]
 ddc = "0.2.2"
