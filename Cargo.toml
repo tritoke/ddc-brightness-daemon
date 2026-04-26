@@ -1,0 +1,17 @@
+[package]
+name = "ddc-brightness-daemon"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ddc = "0.2.2"
+ddc-hi = "0.4"
+lexopt = "0.3.2"
+tokio = { version = "1.52", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+
+[[bin]]
+name = "brightctl"
+path = "src/client.rs"
