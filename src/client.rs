@@ -174,7 +174,7 @@ fn parse_args() -> Result<Args, lexopt::Error> {
             Long("get") => action = Action::Get,
             Short('l') | Long("list") => list = true,
             Short('v') | Long("version") => {
-                println!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+                println!("{} v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
             }
             Short('h') | Long("help") => {
