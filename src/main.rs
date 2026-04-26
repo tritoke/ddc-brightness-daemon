@@ -42,7 +42,7 @@ struct State {
 #[interface(name = "org.tritoke.Displays")]
 impl State {
     fn get_display_metadata(&self) -> Vec<HashMap<&'static str, Cow<'_, str>>> {
-        tracing::debug!("[get_display_metadata]"); 
+        tracing::debug!("[get_display_metadata]");
         self.displays.iter().map(build_metadata).collect()
     }
 
@@ -187,7 +187,7 @@ fn build_metadata(display: &Display) -> HashMap<&'static str, Cow<'_, str>> {
             .info
             .manufacture_week
             .map(|num| Cow::Owned(format!("{num}")))
-            .unwrap_or(Cow::Borrowed("??"))
+            .unwrap_or(Cow::Borrowed("??")),
     );
     metadata.insert(
         "manufacture_year",
@@ -195,7 +195,7 @@ fn build_metadata(display: &Display) -> HashMap<&'static str, Cow<'_, str>> {
             .info
             .manufacture_year
             .map(|num| Cow::Owned(format!("{}", 1990 + num as u16)))
-            .unwrap_or(Cow::Borrowed("??"))
+            .unwrap_or(Cow::Borrowed("??")),
     );
 
     metadata

@@ -1,0 +1,64 @@
+.TH BRIGHTCTL 1
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH NAME
+brightctl \- frontend for ddc\-brightness\-daemon
+.SH SYNOPSIS
+.B brightctl
+[OPTIONS...]
+.SH DESCRIPTION
+.PP
+.B brightctl
+controls display brightness by interacting with ddc\-brightness\-daemon. By default it operates on all displays and it supports both relative and absolute brightness adjustments.
+For the context of this program brightness is always expressed as a percentage, so to set the displays to max brightness you can use --set=100.
+.SH OPTIONS
+.PP
+.TP
+.BR \-d ", " \-\-display =\fINUM\fR
+.RS 4
+Optional, sets the number of the display to change the brightness of. Display numbers can be found with \-l/\-\-list. By default all connected displays are changed.
+.RE
+.PP
+.BR \-\-auto
+.RS 4
+If built with x11 support, this option is present and picks the monitor to operate on based on where the cursor is.
+.RE
+.PP
+.BR \-l ", " \-\-list
+.RS 4
+List all connected displays along with some basic metadata - the display model name, the manufacturer, product code, serial number and manufacture date.
+.RE
+.PP
+.BR \-v ", " \-\-version
+.RS 4
+Print the version of brightctl
+.RE
+.PP
+.BR \-h ", " \-\-help
+.RS 4
+Print a help message
+.RE
+.PP
+.BR \-\-get
+.RS 4
+Print the brightness of the selected displays.
+.RE
+.PP
+.BR \-\-set =\fINUM\fR
+.RS 4
+Set the brightness of the selected displays to \fINUM\fR.
+.RE
+.PP
+.BR \-\-inc =\fINUM\fR
+.RS 4
+Increase the brightness of the selected displays by \fINUM\fR.
+.RE
+.PP
+.BR \-\-dec =\fINUM\fR
+.RS 4
+Decrease the brightness of the selected displays by \fINUM\fR.
+.RE
+.SH "EXIT STATUS"
+If an error occurred 1, else 0.
