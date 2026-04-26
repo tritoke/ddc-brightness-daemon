@@ -3,6 +3,7 @@ use std::{collections::HashMap, ops::Neg, process::ExitCode};
 use zbus::{Connection, Result as ZResult, proxy};
 
 const RED: &str = "\x1B[31m";
+const YELLOW: &str = "\x1B[33m";
 const RESET: &str = "\x1B[0m";
 
 #[proxy(
@@ -160,6 +161,10 @@ fn parse_args() -> Result<Args, lexopt::Error> {
             Short('d') | Long("display") => {
                 display = Some(parser.value()?.parse()?);
             }
+            #[cfg(feature = "auto")]
+            Long("auto") => {
+                display = current_monitor();
+            }
             Long("inc") => {
                 action = Action::Change(BrightnessChange::Relative(parser.value()?.parse()?));
             }
@@ -185,6 +190,8 @@ fn parse_args() -> Result<Args, lexopt::Error> {
                 println!("Options:");
                 println!("  -d,    --display: optionally specify which display to change");
                 println!("                    default operates on all displays");
+                #[cfg(feature = "auto")]
+                println!("            --auto: automatically determine the current monitor");
                 println!("  -l,       --list: list all detected displays and metadata");
                 println!("  -v,    --version: get the program version");
                 println!("  -h,       --help: print this help message");
@@ -227,4 +234,71 @@ impl<'a> Context<'a> {
             proxy,
         })
     }
+}
+
+#[cfg(feature = "auto")]
+fn current_monitor() -> Option<usize> {
+    use std::ffi::{c_char, c_int, c_uint};
+    use x11::{
+        xlib::{
+            Display, Screen, Window, XDisplayName, XOpenDisplay, XQueryPointer,
+            XRootWindowOfScreen, XScreenCount, XScreenOfDisplay,
+        },
+        xrandr::{XRRGetMonitors, XRRMonitorInfo},
+    };
+
+    // Adapted from Jordan Sissel's xdotool getmouselocation - https://github.com/jordansissel/xdotool
+    let display_name: *mut c_char = unsafe { XDisplayName(std::ptr::null()) };
+    if display_name.is_null() || unsafe { *display_name } == 0 {
+        eprintln!(
+            "{YELLOW}WARNING: $DISPLAY is empty or unset, cannot determine current monitor{RESET}"
+        );
+        return None;
+    }
+
+    let display: *mut Display = unsafe { XOpenDisplay(display_name) };
+    if display.is_null() {
+        eprintln!("{YELLOW}WARNING: failed to determine current monitor{RESET}");
+        return None;
+    }
+
+    let mut x: c_int = 0;
+    let mut y: c_int = 0;
+    let mut screen_num: i32 = 0;
+    let mut window: Window = 0;
+    let mut root: Window = 0;
+    let mut dummy_int: c_int = 0;
+    let mut dummy_uint: c_uint = 0;
+
+    let screencount = unsafe { XScreenCount(display) };
+    for i in 0..screencount {
+        let screen: *mut Screen = unsafe { XScreenOfDisplay(display, i) };
+
+        let ret = unsafe {
+            XQueryPointer(
+                display,
+                XRootWindowOfScreen(screen),
+                &mut root,
+                &mut window,
+                &mut x,
+                &mut y,
+                &mut dummy_int,
+                &mut dummy_int,
+                &mut dummy_uint,
+            )
+        };
+
+        if ret == 1 {
+            screen_num = i;
+            break;
+        }
+    }
+
+    dbg!(x, y, screen_num);
+
+    // Adapted from xrandr's --listmonitors - https://gitlab.freedesktop.org/xorg/app/xrandr/
+    let mut nmonitors: c_int = 0;
+    let monitors: *mut XRRMonitorInfo = unsafe { XRRGetMonitors(display, root, 0, &mut nmonitors) };
+
+    todo!()
 }
