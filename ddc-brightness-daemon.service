@@ -1,0 +1,12 @@
+[Unit]
+Description=DDC Brightness Daemon
+StartLimitIntervalSec=0
+After=multi-user.target
+Wants=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=%h/.cargo/bin/ddc-brightness-daemon
+
+[Install]
+WantedBy=default.target
