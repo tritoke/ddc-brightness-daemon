@@ -58,11 +58,11 @@ systemctl --user enable --now ddc-brightness-daemon
 The `brightctl` CLI is documentated in the `brightctl.1` man page, the D-Bus interface provided by
 `ddc-brightness-daemon` can be introspected by `busctl` but currently has no proper documentation:
 ```sh
-❯ busctl --user introspect org.tritoke.Brightness1 /org/tritoke/Displays org.tritoke.Displays         
+❯ busctl --user introspect org.tritoke.Brightness1 /org/tritoke/Displays org.tritoke.Displays
 NAME                TYPE   SIGNATURE RESULT/VALUE FLAGS
 .ChangeRelative     method tn        -            -    
 .GetDisplayMetadata method -         aa{ss}       -    
-.ListBrightness     method -         aq           -    
+.ListBrightness     method t         q            -
 .SetAbsolute        method tq        -            -
 ```
 

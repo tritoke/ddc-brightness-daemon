@@ -14,7 +14,7 @@ trait Displays {
     async fn get_display_metadata(&self) -> ZResult<Vec<HashMap<String, String>>>;
     async fn set_absolute(&self, display: usize, amount: u16) -> ZResult<()>;
     async fn change_relative(&self, display: usize, amount: i16) -> ZResult<()>;
-    async fn list_brightness(&self) -> ZResult<Vec<u16>>;
+    async fn list_brightness(&self, display: usize) -> ZResult<u16>;
 }
 
 #[tokio::main]
@@ -96,7 +96,7 @@ async fn main() -> ExitCode {
     exit_code
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum Action {
     Change(BrightnessChange),
     Get,
@@ -110,19 +110,28 @@ impl Action {
     async fn execute(self, context: &Context<'_>, on: usize) -> ExitCode {
         let model_name = context.metadata[on]["model_name"].as_str();
         let disp = format!("display {on} ({model_name})");
-        let old_value = context.brightnesses[on];
+        let old_value = match &context.brightnesses[on] {
+            Ok(brightness) => Some(*brightness),
+            Err(e) => {
+                eprintln!("Failed to get brightness for {disp}: {e}");
+                None
+            }
+        };
 
         match self {
             Action::Change(change) => {
-                let new_value = change.apply(old_value);
-                if old_value == new_value {
-                    println!("No change needed for {disp}");
-                    return ExitCode::SUCCESS;
+                if let Some(old_value) = old_value {
+                    let new_value = change.apply(old_value);
+                    if old_value == new_value {
+                        println!("No change needed for {disp}");
+                        return ExitCode::SUCCESS;
+                    }
+
+                    println!("Changing brightness of {disp} from {old_value}% to {new_value}");
+                } else {
+                    println!("Applying change \"{change}\" to {disp}");
                 }
 
-                println!(
-                    "Changing brightness of display {on} ({model_name}) from {old_value}% to {new_value}"
-                );
                 let res = match change {
                     BrightnessChange::Relative(by) => context.proxy.change_relative(on, by).await,
                     BrightnessChange::Absolute(to) => context.proxy.set_absolute(on, to).await,
@@ -133,8 +142,11 @@ impl Action {
                     return ExitCode::FAILURE;
                 }
             }
-            Action::Get => {
+            Action::Get if let Some(old_value) = old_value => {
                 println!("display {on} ({model_name}) is set to {old_value}% brightness");
+            }
+            Action::Get => {
+                println!("display {on} ({model_name}) is set to ??% brightness");
             }
         }
 
@@ -207,14 +219,18 @@ fn parse_args() -> Result<Args, lexopt::Error> {
 
 struct Context<'a> {
     metadata: Vec<HashMap<String, String>>,
-    brightnesses: Vec<u16>,
+    brightnesses: Vec<ZResult<u16>>,
     proxy: &'a DisplaysProxy<'a>,
 }
 
 impl<'a> Context<'a> {
     async fn try_new(proxy: &'a DisplaysProxy<'_>) -> ZResult<Self> {
         let all_metadata = proxy.get_display_metadata().await?;
-        let brightnesses = proxy.list_brightness().await?;
+        let brightnesses = futures::future::join_all(
+            (0..all_metadata.len()).map(|monitor| proxy.list_brightness(monitor)),
+        )
+        .await;
+
         assert_eq!(
             all_metadata.len(),
             brightnesses.len(),

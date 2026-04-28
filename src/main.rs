@@ -70,14 +70,16 @@ impl State {
         change_brightness(monitor, disp, BrightnessChange::Relative(amount))
     }
 
-    fn list_brightness(&mut self) -> Result<Vec<u16>, zbus::fdo::Error> {
-        tracing::debug!("[list_brightness]");
+    fn list_brightness(&mut self, monitor: usize) -> Result<u16, zbus::fdo::Error> {
+        tracing::debug!("[list_brightness] monitor={monitor}");
 
-        self.displays
-            .iter_mut()
-            .enumerate()
-            .map(|(i, disp)| get_brightness(i, disp))
-            .collect()
+        let Some(disp) = self.displays.get_mut(monitor) else {
+            return Err(zbus::fdo::Error::InvalidArgs(format!(
+                "No such display {monitor}"
+            )));
+        };
+
+        get_brightness(monitor, disp)
     }
 }
 
