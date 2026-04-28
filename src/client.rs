@@ -31,38 +31,38 @@ async fn main() -> ExitCode {
         }
     };
 
-    let connection = match Connection::session().await {
+    let connection = make_static(match Connection::session().await {
         Ok(conn) => conn,
         Err(e) => {
             eprintln!("{RED}Failed to connect to dbus: {e}{RESET}");
             return ExitCode::FAILURE;
         }
-    };
+    });
 
-    let proxy = &match DisplaysProxy::new(&connection).await {
+    let proxy = make_static(match DisplaysProxy::new(&connection).await {
         Ok(conn) => conn,
         Err(e) => {
             eprintln!("{RED}Failed to connect to org.tritoke.Brightness1: {e}{RESET}");
             eprintln!("Is the daemon running?");
             return ExitCode::FAILURE;
         }
-    };
+    });
 
     if action.is_noop() && !list {
         return ExitCode::SUCCESS;
     }
 
-    let context = match Context::try_new(proxy).await {
+    let context = make_static(match Context::try_new(proxy).await {
         Ok(ctx) => ctx,
         Err(e) => {
             eprintln!("{RED}Failed to query for display context: {e}{RESET}");
             return ExitCode::FAILURE;
         }
-    };
+    });
 
     if list {
         println!("Detected displays:");
-        for (i, meta) in context.metadata.into_iter().enumerate() {
+        for (i, meta) in context.metadata.iter().enumerate() {
             println!(
                 "  - [{i}]: {name} - ({id1}:{id2}:{serial}), manufactured week {week} of {year}",
                 name = meta["model_name"],
@@ -79,20 +79,24 @@ async fn main() -> ExitCode {
 
     if let Some(n) = display {
         if n < context.metadata.len() {
-            return action.execute(&context, n).await;
+            let (msg, ec) = action.execute(&context, n).await;
+            println!("{msg}");
+            return ec;
         } else {
             eprintln!("{RED}No display {n}{RESET}");
             return ExitCode::FAILURE;
         }
     }
 
+    let requests = (0..context.metadata.len()).map(|i| action.execute(context, i));
+    let responses = futures::future::join_all(requests).await;
     let mut exit_code = ExitCode::SUCCESS;
-    for i in 0..context.metadata.len() {
-        if action.execute(&context, i).await == ExitCode::FAILURE {
-            exit_code = ExitCode::FAILURE;
+    for (msg, ec) in responses {
+        println!("{msg}");
+        if ec == ExitCode::FAILURE {
+            exit_code = ec;
         }
     }
-
     exit_code
 }
 
@@ -107,30 +111,24 @@ impl Action {
         matches!(self, Action::Change(BrightnessChange::Relative(0)))
     }
 
-    async fn execute(self, context: &Context<'_>, on: usize) -> ExitCode {
+    async fn execute(self, context: &Context<'_>, on: usize) -> (String, ExitCode) {
         let model_name = context.metadata[on]["model_name"].as_str();
         let disp = format!("display {on} ({model_name})");
-        let old_value = match &context.brightnesses[on] {
-            Ok(brightness) => Some(*brightness),
-            Err(e) => {
-                eprintln!("Failed to get brightness for {disp}: {e}");
-                None
-            }
-        };
+        let old_value = context.brightnesses[on].as_ref().copied().ok();
 
-        match self {
+        let msg = match self {
             Action::Change(change) => {
-                if let Some(old_value) = old_value {
+                let msg = if let Some(old_value) = old_value {
                     let new_value = change.apply(old_value);
                     if old_value == new_value {
-                        println!("No change needed for {disp}");
-                        return ExitCode::SUCCESS;
+                        let msg = format!("No change needed for {disp}");
+                        return (msg, ExitCode::SUCCESS);
                     }
 
-                    println!("Changing brightness of {disp} from {old_value}% to {new_value}");
+                    format!("Changing brightness of {disp} from {old_value}% to {new_value}")
                 } else {
-                    println!("Applying change \"{change}\" to {disp}");
-                }
+                    format!("Applying change \"{change}\" to {disp}")
+                };
 
                 let res = match change {
                     BrightnessChange::Relative(by) => context.proxy.change_relative(on, by).await,
@@ -138,19 +136,21 @@ impl Action {
                 };
 
                 if let Err(e) = res {
-                    eprintln!("{RED}Failed to set brightness for {disp}: {e}{RESET}");
-                    return ExitCode::FAILURE;
+                    let msg = format!("{RED}Failed to set brightness for {disp}: {e}{RESET}");
+                    return (msg, ExitCode::FAILURE);
                 }
+
+                msg
             }
             Action::Get if let Some(old_value) = old_value => {
-                println!("display {on} ({model_name}) is set to {old_value}% brightness");
+                format!("display {on} ({model_name}) is set to {old_value}% brightness")
             }
             Action::Get => {
-                println!("display {on} ({model_name}) is set to ??% brightness");
+                format!("display {on} ({model_name}) is set to ??% brightness")
             }
-        }
+        };
 
-        ExitCode::SUCCESS
+        (msg, ExitCode::SUCCESS)
     }
 }
 
@@ -243,4 +243,9 @@ impl<'a> Context<'a> {
             proxy,
         })
     }
+}
+
+// teehee
+fn make_static<T>(value: T) -> &'static mut T {
+    Box::leak(Box::new(value))
 }
