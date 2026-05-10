@@ -1,6 +1,7 @@
 use ddc::{Ddc, DdcHost as _, FeatureCode};
 use ddc_hi::Display;
-use std::{borrow::Cow, collections::HashMap, error::Error, future::pending};
+use exponential_backoff::Backoff;
+use std::{borrow::Cow, collections::HashMap, error::Error, future::pending, time::Duration};
 use zbus::{connection, interface};
 
 use ddc_brightness_daemon::BrightnessChange;
@@ -12,7 +13,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt::init();
 
     tracing::info!("Enumerating displays");
-    let displays = Display::enumerate();
+    let mut backoff = Backoff::new(19, Duration::from_secs(1), Duration::from_mins(10)).into_iter();
+    let displays = loop {
+        let displays: Vec<Display> = Display::enumerate();
+        if displays.len() == 0 {
+            let Some(sleep_for) = backoff.next().unwrap() else {
+                tracing::error!("Failed to enumerate displays after 20 attempts.");
+                std::process::exit(2);
+            };
+            tracing::warn!("Enumerated displays but found nothing? trying again in {sleep_for:?}");
+            std::thread::sleep(sleep_for);
+            continue;
+        }
+
+        break displays;
+    };
 
     tracing::info!("Detected displays:");
     for (i, disp) in displays.iter().enumerate() {

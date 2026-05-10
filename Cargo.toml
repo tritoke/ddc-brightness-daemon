@@ -1,6 +1,6 @@
 [package]
 name = "ddc-brightness-daemon"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 authors = ["Sam Leonard <tritoke@protonmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -13,6 +13,7 @@ default-run = "ddc-brightness-daemon"
 [dependencies]
 ddc = "0.2.2"
 ddc-hi = "0.4"
+exponential-backoff = "2.1.0"
 futures = { version = "0.3.32", default-features = false, features = ["std"] }
 lexopt = "0.3.2"
 tokio = { version = "1.52", features = ["full"] }

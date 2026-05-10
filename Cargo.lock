@@ -150,10 +150,11 @@ dependencies = [
 
 [[package]]
 name = "ddc-brightness-daemon"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "ddc",
  "ddc-hi",
+ "exponential-backoff",
  "futures",
  "lexopt",
  "tokio",
@@ -296,6 +297,15 @@ checksum = "8be9f3dfaaffdae2972880079a491a1a8bb7cbed0b8dd7a347f668b4150a3b93"
 dependencies = [
  "event-listener",
  "pin-project-lite",
+]
+
+[[package]]
+name = "exponential-backoff"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "020662aa57307d8884be79fca464cce073745cfe6ac70805770972113ca6ee95"
+dependencies = [
+ "fastrand",
 ]
 
 [[package]]
